@@ -17,16 +17,16 @@ from train import create_model
 
 import collections
 import json
-def get_label_map(cat_name_file):
-    # Open and load the JSON file
-    with open(cat_name_file, 'r') as file:
-        data = json.load(file)
+# def get_label_map(cat_name_file):
+#     # Open and load the JSON file
+#     with open(cat_name_file, 'r') as file:
+#         data = json.load(file)
 
-    # Convert string keys to integers and store them in a new dictionary
-    category_mapping = {int(key): value for key, value in data.items()}
-    print(category_mapping)
+#     # Convert string keys to integers and store them in a new dictionary
+#     category_mapping = {int(key): value for key, value in data.items()}
+#     print(category_mapping)
     
-    return category_mapping
+#     return category_mapping
 
 
 def process_image(image_path):
@@ -83,9 +83,9 @@ def load_model(checkpoint_dict: dict,
     if arch == "vgg13":
         model = models.vgg13(weights=None)
         model.classifier = nn.Sequential(
-            nn.Linear(25088, hidden_layers[0]),  # Adjust input size based on VGG output
+            nn.Linear(25088, 512),  # Adjust input size based on VGG output
             nn.ReLU(),
-            nn.Linear(hidden_layers[0],102)
+            nn.Linear(512,102)
         )
     elif arch == "vit16":
         HIDDEN_LAYER_1 = 256
@@ -132,7 +132,7 @@ def load_model(checkpoint_dict: dict,
 def predict_and_plot_topk(model: nn.Module,
                           class_to_idx:dict,
                         cat_name_file:json,
-                          class_list: list,
+                          CLASSES: list,
                           image_path: str,
                           device: torch.device,
                           topk: int = 5):
@@ -158,9 +158,15 @@ def predict_and_plot_topk(model: nn.Module,
     topk_probs_np = topk_probs.numpy(force=True)
     topk_indices_np = topk_indices.numpy(force=True)
     
-    # topk_class_names = [label_map[i] for i in topk_indices_np]
-    # print("priting topk names")
-    # print(topk_class_names)
+    with open(cat_name_file, 'r') as f:
+        cat_to_name = json.load(f)
+    
+    topk_classes = [CLASSES[index] for index in topk_indices_np]
+    print("actual topk classes",topk_classes)
+    labels = [cat_to_name[str(cls)] for cls in topk_classes]
+    print("actual topk NAMES",labels)
+    # Get the top-k class names using class_to_idx and cat_to_name
+    #topk_class_names = [cat_to_name[str(class_to_idx[i])] for i in topk_indices_np]
     # Convert tensor to numpy array for plotting
     probs_np = probabilities.numpy(force=True)
     # print(f"Output probabilities: {probabilities}")  # Add this line
@@ -177,8 +183,8 @@ def predict_and_plot_topk(model: nn.Module,
 
     # Plot the top-k classes
     plt.subplot(2, 1, 2)
-    plt.barh([class_list[i] for i in topk_indices_np], topk_probs_np, color='blue')
-    # plt.barh(topk_class_names, topk_probs_np, color='blue')
+    #plt.barh([class_list[i] for i in topk_indices_np], topk_probs_np, color='blue')
+    plt.barh(labels, topk_probs_np, color='blue')
     plt.xlabel('Predicted Probability')
     plt.title(f'Top-{topk} Predicted Classes')
 
@@ -223,9 +229,11 @@ def main():
                                        transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                             std=[0.229, 0.224, 0.225])])
     CHKPT_DICT = load_checkpoint(args.checkpoint_path,device)
-    CLASSES=CHKPT_DICT["classes"]
-    print("classes are ", CHKPT_DICT["classes"])  # Note the lowercase 'classes'
+    
     class_to_idx=CHKPT_DICT["class_to_idx"]  # Note the lowercase 'class_to_idx'
+    CLASSES = [int(class_name) for class_name in class_to_idx.keys()]
+    print(CLASSES)
+    #CLASSES = [class_name for class_name in class_to_idx.values()]
     new_model = load_model(CHKPT_DICT,hidden_layers = CHKPT_DICT["hidden_layers"],output_layer = CHKPT_DICT["output_layer"],device_trained_on = CHKPT_DICT["device_trained_on"],device=device)
     if new_model is None:
             print("Failed to load model. Exiting...")

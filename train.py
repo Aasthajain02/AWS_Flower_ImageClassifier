@@ -50,11 +50,12 @@ def load_data(data_dir,arch):
 def create_model(arch, hidden, learn_rate, gpu):
     if arch == 'vgg13':
         print("Using VGG13 model")
-        model = models.vgg13(pretrained=True)
+        vgg13_weights = torchvision.models.VGG13_Weights.DEFAULT
+        model = models.vgg13(weights=vgg13_weights)
         for param in model.parameters():
             param.requires_grad = False
         model.classifier = nn.Sequential(
-        nn.Linear(4096, hidden),
+        nn.Linear(25088, hidden),
         nn.ReLU(),
         nn.Dropout(p=0.2),
         nn.Linear(hidden, 102),
